@@ -67,6 +67,15 @@ export const Header: React.FC<HeaderProps> = ({
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
 
+  const isSuperAdminUser = Boolean(
+    user && (
+      user.isSuperAdmin === true ||
+      user.email?.toLowerCase() === 'hhghjfhjdgkxzz@gmail.com' ||
+      user.email?.toLowerCase() === 'admin@streamgifts.com' ||
+      user.id === 'EMP-ADMIN-MAIN' ||
+      user.id === 'EMP-ADMIN-USER'
+    )
+  );
   const brandName = siteSettings?.siteName?.trim() || 'Destroy KING Designer';
   const primaryPhone = siteSettings?.primaryPhone || siteSettings?.whatsapp || '+923400700013';
   const primaryLabel = siteSettings?.primaryPhoneLabel || 'WhatsApp';
@@ -142,7 +151,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="font-extrabold text-sm sm:text-base text-white tracking-wide group-hover:text-cyan-400 transition-colors truncate">
                     {brandName}
                   </span>
-                  {onOpenSiteSettings && (
+                  {onOpenSiteSettings && isSuperAdminUser && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -150,7 +159,7 @@ export const Header: React.FC<HeaderProps> = ({
                         onOpenSiteSettings();
                       }}
                       className="p-1 rounded-lg text-slate-500 hover:text-amber-400 hover:bg-slate-800 transition-colors cursor-pointer"
-                      title={lang === 'ar' ? 'تعديل لوجو واسم الموقع وأرقام التواصل' : 'Edit site info'}
+                      title={lang === 'ar' ? 'تعديل لوجو واسم الموقع وأرقام التواصل (خاص بالمدير)' : 'Edit site info (Admin)'}
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5" />
                     </button>

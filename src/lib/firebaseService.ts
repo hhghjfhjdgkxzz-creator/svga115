@@ -213,54 +213,22 @@ export function subscribeToGifts(callback: (gifts: GiftItem[]) => void) {
       }
     });
 
+    // Mirror current cloud database state to local storage cache
     try {
-      const localGifts: GiftItem[] = JSON.parse(localStorage.getItem('jiawei_custom_gifts_v1') || '[]');
-      const cleanLocal = localGifts.filter(g => !isDummyGift(g));
-      if (cleanLocal.length !== localGifts.length) {
-        localStorage.setItem('jiawei_custom_gifts_v1', JSON.stringify(cleanLocal));
-      }
-
-      const isCleared = localStorage.getItem('jiawei_gifts_cleared') === 'true';
-      const map = new Map<string, GiftItem>();
-
-      // Firestore cloud gifts take absolute priority
-      gifts.forEach(g => {
-        if (!isDummyGift(g)) map.set(g.id, g);
-      });
-      cleanLocal.forEach((g: GiftItem) => {
-        if (!map.has(g.id) && !isDummyGift(g)) map.set(g.id, g);
-      });
-
-      const allGifts = Array.from(map.values()).filter(g => !isDummyGift(g));
-      // Sort newest gifts first so any newly uploaded gift immediately reflects at the top of the storefront!
-      allGifts.sort((a, b) => {
-        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        if (timeA && timeB && timeA !== timeB) return timeB - timeA;
-        return (b.id || '').localeCompare(a.id || '');
-      });
-
-      callback(allGifts);
-      return;
+      localStorage.setItem('jiawei_custom_gifts_v1', JSON.stringify(gifts));
     } catch(e) {}
 
-    // Sort newest gifts first
+    // Sort newest gifts first so any newly uploaded gift immediately reflects at the top of the storefront!
     gifts.sort((a, b) => {
       const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       if (timeA && timeB && timeA !== timeB) return timeB - timeA;
       return (b.id || '').localeCompare(a.id || '');
     });
+
     callback(gifts);
   }, (error) => {
-    console.error('Error subscribing to gifts:', handleFirestoreError(error));
-    try {
-      const localGifts: GiftItem[] = JSON.parse(localStorage.getItem('jiawei_custom_gifts_v1') || '[]');
-      const cleanLocal = localGifts.filter(g => !isDummyGift(g));
-      const map = new Map<string, GiftItem>();
-      cleanLocal.forEach((g: GiftItem) => map.set(g.id, g));
-      callback(Array.from(map.values()));
-    } catch(e) {}
+    console.error('Error in subscribeToGifts snapshot:', error);
   });
 }
 

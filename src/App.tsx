@@ -33,7 +33,7 @@ export default function App() {
   // Main View: Storefront vs Admin Dashboard
   const [currentView, setCurrentView] = useState<'store' | 'dashboard'>('store');
 
-  // Gifts State with Firebase persistence - loads real gifts immediately on frame 1 with ZERO delay!
+  // Gifts State with Firebase persistence - loads user gifts from Firestore / cache
   const [gifts, setGifts] = useState<GiftItem[]>(() => {
     try {
       const cached = localStorage.getItem('jiawei_custom_gifts_v1');
@@ -41,30 +41,24 @@ export default function App() {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) {
           const clean = parsed.filter(g => !isDummyGift(g));
-          if (clean.length > 0) return clean;
+          return clean;
         }
       }
     } catch(e) {}
-    return REAL_GIFTS_CATALOG.filter(g => !isDummyGift(g));
+    return [];
   });
 
   useEffect(() => {
     // Purge any dummy test gifts immediately on app mount
     purgeDummyGifts().catch(() => {});
 
-    // Save clean real catalog to localStorage for persistent offline/instant loads
-    try {
-      const current = localStorage.getItem('jiawei_custom_gifts_v1');
-      if (!current || JSON.parse(current).length === 0) {
-        localStorage.setItem('jiawei_custom_gifts_v1', JSON.stringify(REAL_GIFTS_CATALOG));
-      }
-    } catch(e) {}
-
-    // Real-time synchronization in background without blinking or skeleton
+    // Real-time synchronization with Firestore database
     const unsubscribe = subscribeToGifts((newGifts) => {
-      if (newGifts && newGifts.length > 0) {
-        setGifts(newGifts.filter(g => !isDummyGift(g)));
-      }
+      const clean = (newGifts || []).filter(g => !isDummyGift(g));
+      setGifts(clean);
+      try {
+        localStorage.setItem('jiawei_custom_gifts_v1', JSON.stringify(clean));
+      } catch (e) {}
     });
     return () => unsubscribe();
   }, []);
@@ -503,16 +497,44 @@ ID الحساب: ${user.id}` : ''}
           {/* Design Cards Grid Section */}
           <section id="gifts-gallery-section" className="w-full flex flex-col scroll-mt-20">
             {(filteredGifts?.length || 0) === 0 ? (
-              <div className="py-20 text-center text-slate-500 space-y-3">
-                <p className="text-sm">
-                  {lang === 'ar' ? 'لم يتم العثور على تصاميم تطابق خيارات التصفية' : '未找到匹配的设计或动效'}
-                </p>
-                <button
-                  onClick={handleResetFilters}
-                  className="px-4 py-2 rounded-xl bg-slate-900 text-cyan-400 text-xs font-semibold border border-slate-800 cursor-pointer"
-                >
-                  {lang === 'ar' ? 'إعادة ضبط البحث' : '重置搜索与分类'}
-                </button>
+              <div className="py-20 text-center text-slate-500 space-y-4 max-w-md mx-auto">
+                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto text-amber-400 text-2xl shadow-lg">
+                  🎁
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-slate-300">
+                    {searchQuery || category !== 'all'
+                      ? (lang === 'ar' ? 'لم يتم العثور على تصاميم تطابق البحث' : 'No designs match your search')
+                      : (lang === 'ar' ? 'المتجر جاهز ومستعد لإضافة الهدايا والتصاميم' : 'Store is ready for new designs')}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {searchQuery || category !== 'all'
+                      ? (lang === 'ar' ? 'جرب البحث بكلمات أخرى أو اختر قسماً مختلفاً' : 'Try searching with different terms')
+                      : (lang === 'ar' ? 'تم تفريغ الهدايا السابقة بنجاح. يمكنك الآن رفع ونشر هداياك وتصاميمك الجديدة مباشرة عبر لوحة التحكم.' : 'Previous gifts cleared. You can now upload and publish new gifts via Dashboard.')}
+                  </p>
+                </div>
+                {searchQuery || category !== 'all' ? (
+                  <button
+                    onClick={handleResetFilters}
+                    className="px-4 py-2 rounded-xl bg-slate-900 text-cyan-400 text-xs font-semibold border border-slate-800 cursor-pointer hover:bg-slate-800"
+                  >
+                    {lang === 'ar' ? 'إعادة ضبط البحث والتصنيفات' : 'Reset Search'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (user && (user.role === 'admin' || user.role === 'designer' || user.role === 'employee')) {
+                        setCurrentView('dashboard');
+                      } else {
+                        onOpenStaffAuth ? onOpenStaffAuth() : setIsAuthOpen(true);
+                      }
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-bold shadow-lg shadow-amber-500/20 cursor-pointer inline-flex items-center gap-2"
+                  >
+                    <span>👑</span>
+                    <span>{lang === 'ar' ? 'رفع وتصميم هدية من لوحة التحكم' : 'Upload Gift via Dashboard'}</span>
+                  </button>
+                )}
               </div>
             ) : (
               <>
